@@ -53,7 +53,7 @@ BA-Agent 将这条工作链路收敛到一个对话式入口，由 Agent 根据�
 
 ### 对话工作区
 
-![BA-Agent 对话工作区](docs/assets/screenshots/ba-agent-chat.jpg)
+![BA-Agent 对话工作区](docs/assets/screenshots/ba-agent-chat-full.png)
 
 同一个任务可以持续追问，并通过 `conversation_id` 复用 LangGraph Checkpointer 中的历史状态。
 
