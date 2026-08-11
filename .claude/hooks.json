@@ -1,0 +1,45 @@
+{
+  "hooks": [
+    {
+      "eventName": "PreToolUse",
+      "matcher": {
+        "toolName": ["execute_command", "python_sandbox", "database", "skill_manager"]
+      },
+      "hook": "bash .claude/hooks/check-security.sh",
+      "description": "统一安全检查 - 检查命令权限、SQL注入、Skill安装来源"
+    },
+    {
+      "eventName": "PostToolUse",
+      "matcher": {
+        "toolName": ["database", "web_search", "web_reader", "skill_manager", "file_reader", "python_sandbox", "skill_invoker", "vector_search", "execute_command"]
+      },
+      "hook": "bash .claude/hooks/log-and-summarize.sh",
+      "description": "记录活动并总结 - 记录详细日志到progress.md，返回简洁摘要给用户"
+    },
+    {
+      "eventName": "PostToolUse",
+      "action": "every",
+      "count": 5,
+      "hook": "bash .claude/hooks/prompt-save-finding.sh",
+      "description": "提示保存发现 - 每5次工具调用后提示保存重要发现"
+    },
+    {
+      "eventName": "PostToolUse",
+      "matcher": {
+        "toolName": ["skill_invoker"]
+      },
+      "hook": "bash .claude/hooks/session-manager.sh",
+      "description": "更新Skill进度 - Skill执行后更新进度"
+    },
+    {
+      "eventName": "Stop",
+      "hook": "bash .claude/hooks/session-manager.sh",
+      "description": "会话管理 - 保存会话摘要到memory/并检查任务完成度"
+    },
+    {
+      "eventName": "UserPromptSubmit",
+      "hook": "bash .claude/hooks/validate-input.sh",
+      "description": "验证输入 - 用户提交提示时验证"
+    }
+  ]
+}

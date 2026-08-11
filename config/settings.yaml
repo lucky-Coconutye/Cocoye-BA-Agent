@@ -1,0 +1,166 @@
+# BA-Agent 配置文件
+#
+# 支持环境变量覆盖：
+# - 使用 BA_ 前缀，例如 BA_DATABASE_HOST
+# - 嵌套配置使用 __ 分隔，例如 BA_DATABASE__HOST
+# - API 密钥使用 BA_{PROVIDER}_API_KEY，例如 BA_ANTHROPIC_API_KEY
+
+# 环境配置
+environment: development  # development, production, test
+debug: true
+
+# 数据库配置
+database:
+  # 默认连接配置
+  host: localhost
+  port: 5432
+  username: postgres
+  password: ""
+  database: ba_agent
+  pool_size: 10
+  max_overflow: 20
+
+  # 多数据库连接配置
+  connections:
+    primary:
+      host: localhost
+      port: 5432
+      username: postgres
+      password: ""
+      database: ba_agent
+      pool_size: 10
+      max_overflow: 20
+    clickhouse:
+      host: localhost
+      port: 8123
+      username: default
+      password: ""
+      database: analytics
+      pool_size: 5
+      max_overflow: 10
+
+  # SQL 安全配置
+  security:
+    enabled: true
+    # 允许的 SQL 语句类型
+    allowed_statements:
+      - SELECT
+      - WITH
+    # 禁止的关键字
+    forbidden_keywords:
+      - DROP
+      - DELETE
+      - UPDATE
+      - INSERT
+      - ALTER
+      - CREATE
+      - TRUNCATE
+      - GRANT
+      - REVOKE
+    # 查询超时（秒）
+    query_timeout: 30
+    # 最大返回行数
+    max_rows: 10000
+
+# LLM 模型配置
+llm:
+  provider: anthropic  # anthropic, openai, zhipuai
+  model: claude-3-5-sonnet-20241022
+  api_key: ""  # 建议通过环境变量 BA_ANTHROPIC_API_KEY 设置
+  base_url: null
+  temperature: 0.7
+  max_tokens: 4096
+  timeout: 120
+
+# 向量数据库配置
+vector_store:
+  type: chroma
+  persist_directory: ./data/vector_db
+  embedding_model: text-embedding-ada-002
+  collection_name: ba_agent
+
+# Docker 隔离环境配置
+docker:
+  enabled: true
+  image: python:3.12-slim
+  memory_limit: 512m
+  cpu_limit: "1.0"
+  timeout: 300
+  network_disabled: true
+
+# 记忆管理配置
+memory:
+  enabled: true
+  memory_dir: ./memory
+  daily_log_format: "%Y-%m-%d"
+  max_context_tokens: 8000
+
+  # Memory Flush 配置
+  flush:
+    enabled: true
+    soft_threshold_tokens: 4000    # 距离限制多少 token 时触发
+    reserve_tokens_floor: 2000     # 保留空间
+    min_memory_count: 3             # 最少记忆数量
+    max_memory_age_hours: 24.0      # 记忆最大年龄（小时）
+    llm_model: "glm-4.7-flash"      # 提取模型
+    llm_timeout: 30                 # LLM 超时（秒）
+    compaction_keep_recent: 10      # 压缩对话时保留最近的消息数量
+
+  # Memory Search 配置
+  search:
+    enabled: true
+    provider: "auto"               # auto, zhipuai, openai, local
+    model: "text-embedding-3-small"
+    fallback: "local"              # remote 失败时回退到 local
+    chunking:
+      tokens: 400                   # 文本分块 token 数
+      overlap: 80                   # 重叠 token 数
+    query:
+      max_results: 6                # 默认返回结果数
+      min_score: 0.35               # 最小相关性分数
+    hybrid:
+      enabled: true              # 是否启用混合搜索
+      vector_weight: 0.7          # 向量搜索权重
+      text_weight: 0.3            # 文本搜索权重
+
+  # Memory Watcher 配置
+  watcher:
+    enabled: false                 # 是否启用文件监听（默认禁用，避免资源占用）
+    watch_paths:                   # 监听的路径列表
+      - ./memory
+    debounce_seconds: 2.0          # 防抖秒数
+    check_interval_seconds: 5.0    # 检查间隔秒数
+
+# 日志配置
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: ./logs/ba_agent.log
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+
+# 安全配置
+security:
+  allowed_hosts:
+    - localhost
+    - 127.0.0.1
+  api_key_required: true
+  rate_limit_enabled: true
+  rate_limit_per_minute: 60
+  command_whitelist:
+    - ls
+    - cat
+    - echo
+    - grep
+    - head
+    - tail
+    - wc
+
+# API 服务配置
+api:
+  host: 0.0.0.0
+  port: 8000
+  workers: 1
+  reload: false
+  cors_origins:
+    - http://localhost:3000

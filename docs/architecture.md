@@ -1,0 +1,680 @@
+# BA-Agent 技术架构文档
+
+> **版本**: v2.3.0
+> **最后更新**: 2026-02-08
+> **开发进度**: ~88% (26/30 User Stories 完成)
+> **测试状态**: 1030/1030 通过
+
+产品需求请参阅 [README.md](README.md)
+
+---
+
+## 📋 文档概述
+
+本文档描述 BA-Agent 的技术架构设计、组件实现和开发状态。
+
+---
+
+## 🏗️ 架构设计原则
+
+### 核心设计理念
+
+1. **单 Agent + Pipeline v2.1 + 可配置 Skills**
+   - 一个主 Agent (LangGraph)
+   - Pipeline v2.1: 统一工具输出格式 (ToolExecutionResult)
+   - 基础工具：execute_command, run_python, web_search, web_reader, file_reader, file_write, query_database, search_knowledge
+   - Skills 通过配置注册，可动态扩展
+
+2. **Agent Loop 迭代**
+   - 每次循环：Analyze → Plan → Execute → Observe
+   - 持续迭代直到任务完成
+
+3. **Python 沙盒是核心**
+   - 所有分析能力通过 Python + Claude Skill 实现
+   - 本地 Docker 隔离环境替代云端虚拟机
+
+4. **Skills 可配置**
+   - 用户可以添加自定义 Skills
+   - Skills 通过 YAML 配置文件注册
+   - Agent 通过 `invoke_skill` 工具调用
+
+5. **Pipeline v2.1.0 特性**
+   - **OutputLevel**: BRIEF/STANDARD/FULL 三级输出控制
+   - **ToolCachePolicy**: 缓存策略管理
+   - **DynamicTokenCounter**: 精确的 Token 计数
+   - **AdvancedContextManager**: 智能上下文压缩
+   - **IdempotencyCache**: 跨轮次语义缓存
+   - **ToolTimeoutHandler**: 同步超时控制
+
+6. **ContextCoordinator 协调层 (v2.3.0 新增)**
+   - 统一的上下文准备入口
+   - 协调文件清理和上下文构建
+   - 确保系统提示在第一位
+   - 明确职责划分（LangGraph 管理历史，ContextManager 管理清理）
+
+---
+
+## 🎯 整体架构图
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              用户交互层                                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │  Python API  │  │  Web API     │  │  IM Bot      │  │  Excel插件   │    │
+│  │  (当前可用)  │  │  (当前可用)  │  │  (规划中)    │  │  (规划中)    │    │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘    │
+└─────────────────────────────────────────────────────────────────────────┘
+                                          │
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       API 服务层 (FastAPI)                             │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  JWT 认证 | 速率限制 | 错误处理 | 请求日志                              │   │
+│  │  BAAgentService (HTTP 接口包装、对话管理)                              │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                          │
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    上下文协调层 (ContextCoordinator) v2.3.0              │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  • prepare_messages() - 准备发送给 LLM 的消息列表                       │   │
+│  │  • 协调文件清理和上下文构建                                              │   │
+│  │  • 确保系统提示在第一位                                                  │   │
+│  │  • 委托文件清理给 ContextManager                                          │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                          │
+                  ┌─────────────────────┼─────────────────────┐
+                  ▼                     ▼                     ▼
+┌─────────────────────────────┐ ┌─────────────────────┐ ┌──────────────────────┐
+│   Pipeline v2.1.0           │ │   ContextManager     │ │   LangGraph         │
+│  (输出管理层)               │ │   (上下文管理)        │ │   (状态管理)        │
+│  ┌──────────────────────┐   │ │  ┌────────────────┐  │ │  ┌────────────────┐  │
+│  │ ToolExecutionResult │   │ │  │ clean_langchain │  │ │  │ AgentState     │  │
+│  │ OutputLevel         │   │ │  │ _build_context  │  │ │  │ Checkpointer   │  │
+│  │ TokenCounter        │   │ │  │ _code_list      │  │ │  │ 消息追加       │  │
+│  └──────────────────────┘   │ │  └────────────────┘  │ │  └────────────────┘  │
+└─────────────────────────────┘ └─────────────────────┘ └──────────────────────┘
+                                          │
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          Agent Loop (LangGraph)                            │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                  Analyze → Plan → Execute → Observe                │   │
+│  │                  (ReAct Pattern with MemorySaver)                  │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                          │
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        基础工具层 (v2.1)                    │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │   │
+│  │  │ execute_cmd  │  │ run_python   │  │ web_search   │          │   │
+│  │  │(Docker隔离) │  │(Docker隔离) │  │  (MCP Z.ai)  │          │   │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘          │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │   │
+│  │  │ web_reader   │  │ file_reader  │  │ file_write   │          │   │
+│  │  │  (MCP Z.ai)  │  │(多格式支持)  │  │(三种模式)    │          │   │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘          │   │
+│  │  ┌──────────────┐  ┌──────────────┐                              │   │
+│  │  │ query_db     │  │ search_kb    │                              │   │
+│  │  │(SQLAlchemy)  │  │(Chroma/内存) │                              │   │
+│  │  └──────────────┘  └──────────────┘                              │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                          │
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        Skills 层 (可配置)                                │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  skills/                                                          │   │
+│  │  ├── anomaly_detection/SKILL.md    (异动检测 - 框架完成)          │   │
+│  │  ├── attribution/SKILL.md         (归因分析 - 框架完成)          │   │
+│  │  ├── report_gen/SKILL.md          (报告生成 - 框架完成)          │   │
+│  │  ├── visualization/SKILL.md       (数据可视化 - 框架完成)        │   │
+│  │  └── [用户自定义 Skills...]                                       │   │
+│  │                                                                 │   │
+│  │  config/skills.yaml (Skill 注册配置)                             │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                          │
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        数据与记忆层                                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+│  │  业务数据库   │  │  数据仓库     │  │  SaaS API    │  │  向量数据库   │   │
+│  │  (PostgreSQL) │  │ (ClickHouse)  │  │ (第三方接口)  │  │  (Chroma)    │   │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘   │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                    三层记忆系统                                  │   │
+│  │  Layer 1: memory/YYYY-MM-DD.md (每日对话日志)                   │   │
+│  │  Layer 2: MEMORY.md (长期知识记忆)                              │   │
+│  │  Layer 3: CLAUDE.md (项目级记忆)                               │   │
+│  │  MemoryFlush (自动提取) + MemoryWatcher (文件监听)              │   │
+│  │  MemorySearch (FTS5 + 向量混合搜索)                             │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📦 技术栈
+
+| 层级 | 技术选型 | 说明 |
+|------|----------|------|
+| **API框架** | FastAPI | 高性能、异步支持、自动文档 |
+| **Agent框架** | LangGraph | ReAct Agent、MemorySaver |
+| **LLM** | Claude 3.5 Sonnet | 中文理解强、长上下文、性价比高 |
+| **备用LLM** | Gemini 1.5 Flash | LingYi AI 代理支持 |
+| **Pipeline** | Pipeline v2.1.0 | 自研统一工具输出格式系统 |
+| **向量数据库** | ChromaDB | 轻量级、易部署、支持本地运行 |
+| **关系数据库** | PostgreSQL | 成熟可靠、支持JSON |
+| **全文搜索** | SQLite FTS5 | 本地索引、BM25 算法 |
+| **容器隔离** | Docker | 本地隔离环境替代云端虚拟机 |
+| **MCP 集成** | Z.ai (智谱) | Web 搜索 + Web 读取 |
+
+---
+
+## 🔧 核心组件
+
+### 1. ContextCoordinator (v2.3.0 新增)
+
+**文件**: `backend/core/context_coordinator.py`
+
+**职责**:
+- 统一协调 LangGraph、ContextManager 和 Memory Flush 的交互
+- 准备发送给 LLM 的消息列表
+- 协调文件清理和上下文构建
+- 确保系统提示在第一位
+
+**核心方法**:
+```python
+def prepare_messages(
+    self,
+    state_messages: List[BaseMessage],
+    session_id: Optional[str] = None,
+) -> List[BaseMessage]:
+    """准备发送给 LLM 的消息列表，清理大文件内容"""
+
+def prepare_messages_with_system_prompt(
+    self,
+    state_messages: List[BaseMessage],
+    system_prompt: str,
+    session_id: Optional[str] = None,
+) -> List[BaseMessage]:
+    """准备消息并确保系统提示在第一位"""
+```
+
+---
+
+### 2. ContextManager
+
+**文件**: `backend/core/context_manager.py`
+
+**职责**:
+- 文件内容清理（超过阈值的文件内容替换为梗概）
+- 上下文构建（合并系统提示、对话历史、文件内容、代码列表）
+- 代码列表管理
+
+**核心方法**:
+```python
+def clean_file_contents(
+    self,
+    files: Dict[str, str],
+    session_id: Optional[str] = None,
+) -> Dict[str, str]:
+    """清理大文件内容"""
+
+def clean_langchain_messages(
+    self,
+    messages: List[Any],
+    session_id: Optional[str] = None,
+    content_threshold: int = 2000,
+) -> List[Any]:
+    """清理 LangChain 格式的消息"""
+
+def build_context(
+    self,
+    message: str,
+    session_id: Optional[str] = None,
+    file_context: Optional[Dict[str, Any]] = None,
+) -> List[BaseMessage]:
+    """构建完整上下文"""
+```
+
+---
+
+### 3. LangGraph Agent
+
+**文件**: `backend/agents/agent.py`
+
+**职责**:
+- Agent 状态管理 (AgentState)
+- 对话历史持久化 (Checkpointer)
+- 工具调用和结果处理
+- Memory Flush 触发
+
+**状态定义**:
+```python
+class AgentState(TypedDict):
+    messages: Annotated[Sequence[BaseMessage], add_messages]
+    session_tokens: int
+    compaction_count: int
+```
+
+**核心方法**:
+```python
+def call_model(state: AgentState) -> dict:
+    """调用 LLM，使用 ContextCoordinator 清理消息"""
+
+def should_continue(state: AgentState) -> Literal["tools", "end"]:
+    """判断是否继续执行工具"""
+
+def invoke(
+    self,
+    message: str,
+    conversation_id: Optional[str] = None,
+    session_id: Optional[str] = None,
+    file_context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Agent 主入口"""
+```
+
+---
+
+### 4. Pipeline v2.1.0
+
+**文件**: `backend/models/pipeline/`
+
+**职责**:
+- 统一工具输出格式
+- 输出级别控制 (BRIEF/STANDARD/FULL)
+- Token 计数
+- 上下文压缩
+- 幂等缓存
+
+**核心类**:
+```python
+class ToolExecutionResult(BaseModel):
+    """统一工具输出格式"""
+    output: str
+    output_level: OutputLevel
+    success: bool
+    error: Optional[str]
+    artifacts: Optional[List[Artifact]]
+    metadata: Optional[Dict[str, Any]]
+
+class OutputLevel(Enum):
+    BRIEF = "brief"      # 仅核心结论
+    STANDARD = "standard"  # 标准输出
+    FULL = "full"        # 完整输出
+
+class DynamicTokenCounter:
+    """多模型 Token 计数"""
+
+class AdvancedContextManager:
+    """智能上下文压缩"""
+
+class IdempotencyCache:
+    """跨轮次语义缓存"""
+
+class ToolTimeoutHandler:
+    """同步超时控制"""
+```
+
+---
+
+### 5. 基础工具层
+
+**文件**: `tools/`
+
+| 工具 | 说明 | 测试 |
+|------|------|------|
+| execute_command | Docker 隔离的命令行执行 | 16/16 ✅ |
+| run_python | Docker 隔离的 Python 代码执行 | 29/29 ✅ |
+| web_search | Web 搜索 (Z.ai MCP) | 22/22 ✅ |
+| web_reader | Web 读取 (Z.ai MCP) | 27/27 ✅ |
+| file_reader | 文件读取 (CSV/Excel/JSON/文本) | 61/61 ✅ |
+| file_write | 文件写入 (三种模式) | 14/14 ✅ |
+| query_database | SQL 查询 (参数化，多数据库) | 54/54 ✅ |
+| search_knowledge | 向量检索 (ChromaDB/内存回退) | 51/51 ✅ |
+| invoke_skill | Skill 调用 (桥接 Skills) | 43/43 ✅ |
+| skill_package | Skill 包管理 (GitHub/ZIP) | 43/43 ✅ |
+
+---
+
+### 6. Skills 系统
+
+**文件**: `backend/skills/`, `skills/`
+
+**职责**:
+- Skill 加载和注册
+- Skill 激活和执行
+- 消息格式化
+
+**配置文件**: `config/skills.yaml`
+
+**内置 Skills**:
+```yaml
+skills:
+  anomaly_detection:
+    name: 异动检测分析
+    entrypoint: skills/anomaly_detection/main.py
+
+  attribution:
+    name: 归因分析
+    entrypoint: skills/attribution/main.py
+
+  report_gen:
+    name: 报告生成
+    entrypoint: skills/report_gen/main.py
+
+  visualization:
+    name: 数据可视化
+    entrypoint: skills/visualization/main.py
+```
+
+---
+
+### 7. 记忆系统
+
+**文件**: `backend/memory/`
+
+**职责**:
+- 三层记忆存储 (每日日志/长期知识/项目级)
+- 自动记忆提取 (MemoryFlush)
+- 文件监听和索引 (MemoryWatcher)
+- 混合搜索 (FTS5 + 向量)
+
+**三层记忆**:
+```
+memory/
+├── YYYY-MM-DD.md    # Layer 1: 每日对话日志
+MEMORY.md            # Layer 2: 长期知识记忆
+CLAUDE.md            # Layer 3: 项目级记忆
+```
+
+---
+
+### 8. API 服务
+
+**文件**: `backend/api/`
+
+**职责**:
+- FastAPI 服务
+- JWT 认证
+- 速率限制
+- 错误处理
+
+**核心端点**:
+```python
+POST /api/v1/auth/login      # JWT 登录
+POST /api/v1/chat/completions # Agent 对话
+GET  /api/v1/files           # 文件列表
+POST /api/v1/files/upload    # 文件上传
+GET  /api/v1/skills          # Skills 列表
+```
+
+---
+
+## 📁 项目结构
+
+```
+ba-agent/
+├── backend/                    # 后端核心
+│   ├── agents/                # Agent 实现 (BAAgent + 自定义 LangGraph)
+│   ├── api/                   # FastAPI 服务
+│   │   ├── services/          # BA-Agent 服务封装
+│   │   ├── routes/            # API 路由
+│   │   └── middleware/        # JWT 认证 + 速率限制
+│   ├── core/                  # 核心组件
+│   │   ├── context_manager.py     # 上下文管理器
+│   │   └── context_coordinator.py  # 上下文协调器 (v2.3.0 新增)
+│   ├── docker/                # Docker 沙盒 (DockerSandbox)
+│   ├── hooks/                 # 系统钩子
+│   ├── models/                # Pydantic 数据模型
+│   │   ├── response.py        # 结构化响应格式定义
+│   │   ├── pipeline.py        # Pipeline v2.1
+│   │   └── agent.py           # Agent 状态模型
+│   ├── memory/                # 记忆系统
+│   │   ├── flush.py           # MemoryFlush
+│   │   ├── index.py           # MemoryWatcher
+│   │   └── search.py          # MemorySearch
+│   └── skills/                # Skills 系统
+├── tools/                     # LangChain 工具
+│   ├── execute_command.py     # 命令行执行
+│   ├── python_sandbox.py      # Python 沙盒
+│   ├── web_search.py          # Web 搜索 (MCP)
+│   ├── web_reader.py          # Web Reader (MCP)
+│   ├── file_reader.py         # 文件读取
+│   ├── file_write.py          # 文件写入
+│   ├── database.py            # SQL 查询
+│   └── vector_search.py       # 向量检索
+├── skills/                    # Skills 目录
+│   ├── anomaly_detection/     # 异动检测
+│   ├── attribution/           # 归因分析
+│   ├── report_gen/            # 报告生成
+│   └── visualization/         # 数据可视化
+├── coco-frontend/             # Web 前端 (Vite + React SPA)
+│   └── index.html            # 单页应用入口
+├── config/                    # 配置文件
+│   ├── config.py              # 配置管理核心
+│   ├── settings.yaml          # 主配置
+│   └── .env                   # 环境变量
+├── tests/                     # 测试套件
+│   ├── core/                  # 核心组件测试
+│   │   ├── test_context_coordinator.py  # ContextCoordinator 测试 (新增)
+│   │   └── test_context_manager.py      # ContextManager 测试
+│   ├── tools/                 # 工具测试
+│   ├── skills/                # Skills 测试
+│   └── api/                   # API 测试
+├── memory/                    # 每日对话日志
+├── docs/                      # 文档
+├── Dockerfile                 # 主服务镜像
+├── Dockerfile.sandbox         # Python 沙盒镜像
+└── docker-compose.yml         # 开发环境
+```
+
+---
+
+## 🔄 上下文管理流程
+
+### 三层协调机制
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         API Layer                                       │
+│                   BAAgentService (ba_agent.py)                           │
+│  - 对话管理 (conversation_id, message_count)                             │
+│  - HTTP 接口包装                                                         │
+└─────────────────────────────┬───────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    Coordination Layer                                    │
+│                   ContextCoordinator (v2.3.0 新增)                       │
+│  - 统一的上下文准备入口                                                  │
+│  - 协调文件清理和上下文构建                                              │
+└─────────────────────────────┬───────────────────────────────────────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+┌─────────────────────┐ ┌──────────────┐ ┌──────────────────────┐
+│    LangGraph        │ │ContextManager│ │   Memory Flush       │
+│  (AgentState)       │ │              │ │                      │
+│  - 消息追加         │ │ - 文件清理   │ │ - Token 监控         │
+│  - Checkpointer     │ │ - 上下文构建 │ │ - 记忆提取           │
+│  - 对话历史         │ │ - 代码列表   │ │ - 持久化             │
+└─────────────────────┘ └──────────────┘ └──────────────────────┘
+```
+
+### 职责划分
+
+| 层级 | 职责 | 状态 |
+|------|------|------|
+| API 层 | HTTP 接口、简单计数 | conversation_id, message_count |
+| 业务层 | LangGraph 管理、Memory Flush | session_tokens, compaction_count |
+| 数据层 | 对话历史持久化 | 完整消息列表 |
+
+---
+
+## 📊 开发状态
+
+### 已完成功能 (2026-02-08)
+
+**Phase 1: Agent 框架** ✅
+- LangGraph + Claude Sonnet 4.5
+- 自定义图结构
+- 结构化响应格式
+
+**Phase 2: 核心工具** ✅
+- 9 个基础工具 (303 个测试)
+- Docker 隔离的命令执行
+- MCP 集成 (Web 搜索 + Web 读取)
+
+**Phase 3: Skills 系统** ✅
+- Skills 配置系统
+- 4 个内置 Skill 框架
+- Skill 包管理工具
+
+**Phase 4: Pipeline v2.1** ✅
+- 统一工具输出格式
+- 输出级别控制
+- Token 计数
+- 上下文压缩
+
+**Phase 5: 核心业务 Skills** ✅
+- 异动检测 (23 tests)
+- 归因分析 (19 tests)
+- 报告生成 (19 tests)
+- 数据可视化 (29 tests)
+
+**Phase 6: 上下文协调** ✅ (v2.3.0)
+- ContextCoordinator 实现
+- 统一文件清理入口
+- 24 个新测试
+
+**Phase 7: API 服务** ✅
+- FastAPI 服务
+- JWT 认证
+- 速率限制
+
+**Phase 8: Web 前端** ✅
+- 单页应用测试控制台
+- Agent 对话界面
+- 文件管理
+
+### 待实现功能 ⏳
+
+- **Phase 9: IM Bot 集成** (钉钉/企业微信)
+- **Phase 10: Excel 插件** (Office.js)
+
+---
+
+## 🧪 测试覆盖
+
+### 测试统计 (2026-02-08)
+
+```
+总计: 1030 个测试
+✅ 通过: 1030 (100%)
+⏭️  跳过: 1 (MCP 相关)
+❌ 失败: 0
+```
+
+### 测试分类
+
+| 类别 | 测试数 | 状态 |
+|------|--------|------|
+| 基础设施 | 135 | ✅ |
+| 核心工具 | 303 | ✅ |
+| Skills 系统 | 200+ | ✅ |
+| Context Coordinator | 24 | ✅ (v2.3.0 新增) |
+| Context Manager | 41 | ✅ (增强测试) |
+| Pipeline v2.1 | 100+ | ✅ |
+| Memory 系统 | 120 | ✅ |
+| Agent 集成 | 25 | ✅ |
+| API 服务 | 36 | ✅ |
+| MCP 集成 | 9 | ✅ |
+| FileStore 系统 | 100+ | ✅ |
+
+---
+
+## 🚀 快速开始
+
+### 环境要求
+
+- Python 3.12+
+- Docker & Docker Compose
+- API Keys (至少一个):
+  - `ANTHROPIC_API_KEY` (Claude)
+  - 或 `GOOGLE_API_KEY` (Gemini)
+  - 或 `ZHIPUAI_API_KEY` (智谱 GLM)
+
+### 安装
+
+```bash
+# 克隆项目
+git clone <repository-url>
+cd ba-agent
+
+# 创建虚拟环境
+python3.12 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 配置环境变量
+cp .env.example .env
+# 编辑 .env 填入 API Keys
+```
+
+### 运行测试
+
+```bash
+# 运行所有测试
+pytest
+
+# 运行特定测试
+pytest tests/test_context_coordinator.py
+pytest tests/tools/
+```
+
+### 启动服务
+
+```bash
+# 启动 Docker 服务
+docker-compose up -d
+
+# 启动 API 服务
+uvicorn backend.api.main:app --reload --port 8000
+
+# 访问 API 文档
+open http://localhost:8000/docs
+
+# 访问 Web 前端测试控制台
+open http://localhost:8000
+```
+
+---
+
+## 📚 相关文档
+
+| 文档 | 说明 |
+|------|------|
+| [README.md](README.md) | 产品需求文档 |
+| [context-management.md](context-management.md) | 上下文管理详解 (v1.5.0) |
+| [response-flow.md](response-flow.md) | 响应格式流转 (v2.8.0) |
+| [prompts.md](prompts.md) | 系统提示词定义 |
+| [skills.md](skills.md) | Skills 开发指南 |
+| [api.md](api.md) | REST API 文档 (v2.3.0) |
+| [development.md](development.md) | 开发指南 (v2.3.0) |
+
+---
+
+**文档版本**: v2.3.0
+**最后更新**: 2026-02-08
+**维护者**: BA-Agent Development Team

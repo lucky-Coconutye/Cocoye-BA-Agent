@@ -1,0 +1,78 @@
+# BA-Agent Skills 配置文件
+#
+# 这个文件定义了 Skills 的运行时配置
+#
+# Skills 元数据（name, description, version 等）从各自的 SKILL.md 文件读取
+# Skills 安装状态记录在 config/skills_registry.json 中
+#
+# 技能来源：
+# - builtin: 内置技能，位于 skills/ 目录
+# - external: 外部安装的技能，通过 skill_package 工具安装
+
+# 全局配置
+global:
+  # Skill 执行超时时间（秒）
+  skill_timeout: 120
+
+  # 最大内存使用
+  max_memory: 512m
+
+  # 是否启用结果缓存
+  enable_cache: true
+
+  # 缓存有效期（秒）
+  cache_ttl: 3600
+
+  # Skill 包管理配置
+  package_manager:
+    # Skills 安装目录
+    install_dir: "skills"
+
+    # 注册表文件
+    registry_file: "config/skills_registry.json"
+
+    # GitHub 安装源（可选，用于搜索推荐 Skills）
+    github_sources:
+      - "https://github.com/ba-agent/skills-registry"
+
+# 内置 Skills 运行时配置覆盖
+#
+# 注意：这些配置会覆盖 SKILL.md 中的默认 config
+skills_config:
+  # 异动检测 Skill
+  anomaly_detection:
+    threshold: 2.0  # 统计检测的标准差倍数
+    min_data_points: 7
+
+  # 归因分析 Skill
+  attribution:
+    max_dimensions: 5
+    min_contribution: 0.05  # 5%
+
+  # 报告生成 Skill
+  report_gen:
+    template_dir: "skills/report_gen/templates"
+    output_format: "markdown"
+
+  # 数据可视化 Skill
+  visualization:
+    default_chart_type: "auto"
+    theme: "default"
+
+# Skill 类别定义（用于组织和分类）
+categories:
+  Analysis:
+    description: "数据分析类 Skills"
+    skills:
+      - anomaly_detection
+      - attribution
+
+  Reporting:
+    description: "报告生成类 Skills"
+    skills:
+      - report_gen
+
+  Visualization:
+    description: "数据可视化类 Skills"
+    skills:
+      - visualization

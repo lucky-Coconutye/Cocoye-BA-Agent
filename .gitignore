@@ -1,0 +1,88 @@
+# Node.js
+node_modules/
+coco-frontend/node_modules/
+coco-frontend/build/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+venv.old/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Data
+data/*.csv
+data/*.json
+data/*.xlsx
+!data/.gitkeep
+
+# Docker
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude (share configuration, but ignore local files)
+.claude/*.local.md
+.claude/cache/
+.claude/session*.jsonl
+.claude/projects/
+
+# Memory Management (Local files, not shared)
+CLAUDE.local.md
+AGENTS.local.md
+USER.local.md
+
+# Memory index and cache
+memory/.index/
+memory/.cache/
+
+# Vector database
+data/chroma/
+data/vectordb/
+
+# Test-generated Skills (skill_manager tests)
+skills/test_*/
+skills/*test_*/
+skills/installed_skill*/
+skills/extracted_skill
+skills/existing_skill
+
+# Test-installed skills in subdirectories
+skills/skills/test_install_skill*/
+skills/skills/test_*/
+
+# Development Memory (personal use, not in Git)
+# 开发记忆存储在 ~/.ba-agent-dev/，不进项目仓库
+# 包含：PROGRESS.md, TASKS.md, MEMORY.md, daily-notes/
+.ba-agent-dev/
+~/.ba-agent-dev/
