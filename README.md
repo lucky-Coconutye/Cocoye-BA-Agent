@@ -1,12 +1,15 @@
 # BA-Agent
 
-> Business Analysis Agent：面向业务分析场景的 AI Native 工作台，将自然语言问题转化为可执行、可追踪、可交付的分析任务。
+> **Business Analysis Agent · AI Native 业务分析工作台**：以对话承接业务问题，通过 LangGraph 动态规划、Skills 按需加载与受控工具执行，将 Excel、CSV 和数据库中的数据转化为可追踪的分析过程，以及图表、报告和文件等可交付成果。
 
 [![Python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![LangGraph](https://img.shields.io/badge/Agent-LangGraph-1C3C3C)](https://langchain-ai.github.io/langgraph/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=111)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vite.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+
+`需求理解` → `任务规划` → `数据分析` → `结果校验` → `图表 / 报告交付`
 
 ## 运行效果
 
