@@ -1,450 +1,379 @@
 # BA-Agent
 
-> 商业分析助手 Agent - Business Analysis Agent
-> **Version**: v2.4.0
-> **Last Updated**: 2026-02-08
+> Business Analysis Agent：面向业务分析场景的 AI Native 工作台，将自然语言问题转化为可执行、可追踪、可交付的分析任务。
 
-面向非技术业务人员的智能数据分析助手，通过自然语言交互提供：
-- 🔍 异动检测与解释
-- 📊 归因分析
-- 📄 报告自动生成
-- 📈 数据可视化
-- 📊 **全流程监控与追踪** (v2.4.0 新增)
+[![Python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![LangGraph](https://img.shields.io/badge/Agent-LangGraph-1C3C3C)](https://langchain-ai.github.io/langgraph/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=111)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vite.dev/)
 
-## 🎯 项目状态
+## 运行效果
 
-**开发进度**: ~90% (27/30 User Stories 完成)
+### AI 分析工作台
 
-**最新进展** (2026-02-08):
-- ✅ 完成核心业务 Skills (US-015/016/017/018) - 90 个测试通过
-- ✅ 完成 API 服务增强 (US-021) - JWT 认证 + 速率限制 + 错误处理
-- ✅ 完成 Web 前端测试控制台 (US-FE-01) - 单页应用 + Agent 对话
-- ✅ **完成 LangGraph 上下文管理协调** - ContextCoordinator 统一文件清理入口
-- ✅ **完成 Agent 全流程监控和追踪系统** (US-MON-01) - Execution Tracer + Metrics Dashboard
-- ✅ 1065 个测试全部通过
-- ✅ FastAPI 服务 v2.4.0 - REST API + JWT 认证 + Web 前端 + 监控仪表板
+![BA-Agent AI 分析工作台](docs/assets/screenshots/ba-agent-home-full.png)
 
-**核心功能完成**:
-- ✅ **Phase 1**: Agent 框架 (LangGraph + Claude Sonnet 4.5)
-- ✅ **Phase 2**: 9 个核心工具（303 个测试）
-- ✅ **Phase 3**: Skills 系统完整实现（137 个测试）
-- ✅ **Pipeline v2.1**: 完整的 Pipeline 系统（746 个测试）
-- ✅ **FileStore**: 统一文件存储系统
-- ✅ **核心 Skills**: 异动检测、归因分析、报告生成、数据可视化
-- ✅ **上下文协调**: ContextCoordinator 统一文件清理和上下文构建
-- ✅ **API 服务**: REST API + JWT 认证 + 速率限制
-- ✅ **Web 前端**: 单页应用测试控制台
-- ✅ **监控仪表板**: 全流程追踪 + 性能指标 + 可视化（v2.4.0 新增）
+首页聚合自然语言任务输入、历史任务、热点洞察、个性化灵感与精选案例，让用户从业务问题直接进入分析流程。
 
-## 🏗️ 技术架构
+### 案例广场
+
+![BA-Agent 案例广场](docs/assets/screenshots/ba-agent-showcase-full.png)
+
+案例广场按 Excel 分析、图表生成、报告润色等任务分类展示可复用场景，帮助用户快速理解产品能力边界。
+
+## 项目简介
+
+业务分析往往不止是一次 SQL 查询：用户需要理解指标口径、读取文件、清洗数据、选择分析方法、解释异常、生成图表，并把结果整理成报告。
+
+BA-Agent 将这条工作链路收敛到一个对话式入口，由 Agent 根据任务动态规划步骤、激活专业 Skill、调用分析工具并沉淀执行结果。
+
+核心场景：
+
+- 异动检测与解释：识别指标波动，结合历史数据判断异常程度；
+- 归因分析：按地区、品类、渠道等维度计算变化贡献；
+- 数据处理：读取 CSV、Excel、JSON，执行 Python 或只读 SQL；
+- 数据可视化：推荐图表类型并生成 ECharts 配置；
+- 报告生成：输出日报、周报、月报或自定义分析报告；
+- 过程追踪：记录 LLM、工具、Skill、Token、耗时与错误链路。
+
+## 从需求到产品
+
+| 阶段 | 核心判断 | 产品/工程落点 |
+| --- | --- | --- |
+| 需求发现 | 分析效率低的根因是跨工具编排和上下文丢失 | 用自然语言承接完整任务，而非只做 NL2SQL |
+| 产品定义 | 用户需要结论，也需要图表、文件和证据链 | 对话工作台 + Artifact + Trace |
+| 方案设计 | 分析路径不固定，但安全边界必须确定 | LangGraph Agent Loop + 确定性工具校验 |
+| 能力扩展 | 不同分析方法需要复用，不能持续膨胀 Prompt | 渐进式 Skills 系统 |
+| 工程落地 | 长上下文、执行风险和线上调试是主要难点 | Context、Pipeline、Sandbox、Monitoring |
+
+产品边界：BA-Agent 是分析协作者，不替代业务口径治理，也不应在缺少人工确认时直接执行高风险经营决策。
+
+## 产品体验
+
+### 对话工作区
+
+![BA-Agent 对话工作区](docs/assets/screenshots/ba-agent-chat.jpg)
+
+同一个任务可以持续追问，并通过 `conversation_id` 复用 LangGraph Checkpointer 中的历史状态。
+
+## 一次分析请求如何执行
+
+```mermaid
+flowchart LR
+    A[业务问题 / 文件] --> B[理解需求与规划任务]
+    B --> C{是否需要专业 Skill}
+    C -- 是 --> D[加载 Skill 指令与资源]
+    C -- 否 --> E[选择基础工具]
+    D --> E
+    E --> F[Python / SQL / File / Web]
+    F --> G[观察结果与错误恢复]
+    G --> H{任务完成?}
+    H -- 否 --> B
+    H -- 是 --> I[结论 / 图表 / 报告 / 文件]
+    B -. Trace .-> J[Token / 耗时 / 成本]
+    F -. Artifact .-> K[FileStore]
+```
+
+1. FastAPI 接收请求并创建或恢复对话；
+2. `ContextCoordinator` 清理大文件内容、整理历史消息并注入系统提示；
+3. LangGraph Agent 判断直接回答、调用工具或激活 Skill；
+4. Tool Node 执行受控分析，Pipeline 统一结果、超时和产物存储；
+5. Agent 根据工具结果继续迭代，直到返回完成响应；
+6. Monitoring 保存完整调用链及性能数据。
+
+## 技术架构
+
+```mermaid
+flowchart LR
+    subgraph EXPERIENCE["① 体验层 · Experience"]
+        direction TB
+        WEB["💬 Web 工作台<br/>React · Vite"]
+        CLIENT["🔌 API / Python Client"]
+    end
+
+    subgraph PLATFORM["② 服务治理层 · Platform"]
+        direction TB
+        API["FastAPI Gateway"]
+        GUARD["🔐 JWT · RBAC<br/>Rate Limit · Error Handling"]
+        SERVICE["BAAgentService"]
+        API --> GUARD --> SERVICE
+    end
+
+    subgraph RUNTIME["③ Agent 智能核心 · Runtime"]
+        direction TB
+        CONTEXT["ContextCoordinator<br/>消息准备 · 文件摘要 · 上下文压缩"]
+        AGENT["◆ LangGraph Agent Loop<br/>Analyze → Plan → Execute → Observe"]
+        SKILLS["🧩 Skill Registry<br/>按需加载专业能力"]
+        MEMORY["🧠 Checkpointer & Memory<br/>会话状态 · 混合检索"]
+
+        CONTEXT --> AGENT
+        SKILLS -. "能力注入" .-> AGENT
+        MEMORY <--> AGENT
+    end
+
+    subgraph EXECUTION["④ 工具执行层 · Execution"]
+        direction TB
+        PIPELINE["Tool Pipeline<br/>统一输出 · 超时 · 缓存 · Token"]
+        TOOLBOX["🛠 Tool Hub<br/>File · SQL · Web · Vector"]
+        SANDBOX["📦 Docker Sandbox<br/>Python · Command · AST Guard"]
+
+        PIPELINE --> TOOLBOX
+        PIPELINE --> SANDBOX
+    end
+
+    subgraph FOUNDATION["⑤ 数据与运营层 · Data & Ops"]
+        direction TB
+        STORE["🗂 FileStore<br/>Upload · Code · Chart · Report"]
+        TRACE["🔭 Execution Trace<br/>Agent · LLM · Tool · Skill Span"]
+        METRICS["📈 Metrics<br/>Token · Latency · Success · Cost"]
+
+        TRACE --> METRICS
+    end
+
+    WEB --> API
+    CLIENT --> API
+    SERVICE --> CONTEXT
+    AGENT ==> PIPELINE
+    TOOLBOX --> STORE
+    SANDBOX --> STORE
+    AGENT -. "运行事件" .-> TRACE
+    PIPELINE -. "执行数据" .-> TRACE
+
+    class WEB,CLIENT experience
+    class API,GUARD,SERVICE platform
+    class CONTEXT,SKILLS,MEMORY runtimeSoft
+    class AGENT runtimeCore
+    class PIPELINE,TOOLBOX,SANDBOX execution
+    class STORE,TRACE,METRICS foundation
+
+    classDef experience fill:#EAF4FF,stroke:#4C8EDA,color:#102A43,stroke-width:1.5px
+    classDef platform fill:#EAFBF3,stroke:#38A169,color:#173F2A,stroke-width:1.5px
+    classDef runtimeSoft fill:#F3EEFF,stroke:#8B6FD4,color:#34245F,stroke-width:1.5px
+    classDef runtimeCore fill:#6D5BD0,stroke:#4C3DAA,color:#FFFFFF,stroke-width:2.5px
+    classDef execution fill:#FFF5E5,stroke:#D69E2E,color:#513B12,stroke-width:1.5px
+    classDef foundation fill:#FFF0F5,stroke:#D06292,color:#57233A,stroke-width:1.5px
+
+    style EXPERIENCE fill:#F8FBFF,stroke:#B8D6F2,stroke-width:1px
+    style PLATFORM fill:#F6FCF9,stroke:#B7E4CA,stroke-width:1px
+    style RUNTIME fill:#FAF8FF,stroke:#D7CBF2,stroke-width:1px
+    style EXECUTION fill:#FFFBF3,stroke:#F1D49A,stroke-width:1px
+    style FOUNDATION fill:#FFF8FA,stroke:#EDC4D5,stroke-width:1px
+```
+
+实线表示用户请求的主执行链路，虚线表示能力注入与可观测数据旁路；中心的 LangGraph Agent 负责决策，Pipeline 和确定性工具负责受控执行。
 
 ### 核心组件
 
-| 组件 | 技术 | 说明 |
-|------|------|------|
-| Agent 框架 | LangGraph + Claude Sonnet 4.5 | 自定义图结构，支持结构化响应 |
-| 工具框架 | LangChain Core | 结构化工具定义 |
-| 输出格式 | Pipeline v2.1 ToolExecutionResult + 结构化响应 | OutputLevel (BRIEF/STANDARD/FULL) |
-| 响应格式 | 结构化 JSON (task_analysis, execution_plan, action) | tool_call/complete 判定 |
-| 数据分析 | pandas, numpy, scipy | Docker 隔离的 Python 执行 |
-| 容器隔离 | Docker | 安全的命令和代码执行 |
-| 记忆管理 | 三层 Markdown | Clawdbot/Manus 模式 |
-| MCP 集成 | Z.ai (智谱) | Web 搜索 + Web 读取 |
-| LingYi AI | Claude/Gemini API | 自定义 API 端点支持 |
-| 前端渲染 | ECharts 5.4 | 图表可视化 |
+| 组件 | 技术 | 职责 |
+| --- | --- | --- |
+| Agent | LangGraph + LangChain Core | 状态管理、推理循环、Tool Calling、结构化响应 |
+| API | FastAPI + Pydantic | 对话、文件、Skills、认证和监控接口 |
+| Context | ContextCoordinator + ContextManager | 消息准备、文件摘要、上下文压缩 |
+| Skills | YAML Frontmatter + Registry/Activator | 专业能力注册、匹配和按需加载 |
+| Pipeline | ToolExecutionResult | 统一输出、超时、缓存、Token 与 Artifact |
+| Analysis | pandas、NumPy、SciPy、SQLAlchemy | 数据处理、统计分析与数据库查询 |
+| Sandbox | Docker + AST 校验 | 隔离 Python/命令执行并限制危险操作 |
+| Storage | FileStore | 管理上传、代码、图表、报告、缓存和临时文件 |
+| Monitoring | Trace + Span + Metrics | 记录调用链、耗时、Token、错误与成本估算 |
+| Frontend | React + Vite + Tailwind CSS | 首页、历史任务、案例和对话工作区 |
 
-### 项目结构
+## AI Native 工程设计
 
-```
-ba-agent/
-├── backend/                    # 后端核心
-│   ├── agents/                # Agent 实现 (BAAgent + 自定义 LangGraph)
-│   ├── api/                   # FastAPI 服务
-│   │   ├── services/          # BA-Agent 服务封装
-│   │   ├── routes/            # API 路由
-│   │   │   └── monitoring/    # 监控 API (v2.4.0 新增)
-│   │   └── middleware/        # JWT 认证 + 速率限制
-│   ├── core/                  # 核心组件 ⭐ NEW
-│   │   ├── context_manager.py     # 上下文管理器
-│   │   └── context_coordinator.py  # 上下文协调器 (v2.3.0 新增)
-│   ├── docker/                # Docker 沙盒 (DockerSandbox)
-│   ├── hooks/                 # 系统钩子
-│   ├── logging/               # 日志系统 (AgentLogger)
-│   ├── models/                # Pydantic 数据模型
-│   │   ├── response.py        # 结构化响应格式定义
-│   │   ├── pipeline.py        # Pipeline v2.1
-│   │   └── agent.py           # Agent 状态模型
-│   ├── monitoring/            # 监控系统 (v2.4.0 新增) ⭐
-│   │   ├── execution_tracer.py  # 执行追踪器
-│   │   ├── metrics_collector.py  # 指标收集器
-│   │   └── trace_store.py       # 追踪存储
-│   └── skills/                # Skills 系统
-├── tools/                     # LangChain 工具
-│   ├── base.py                # 统一工具输出格式包装器
-│   ├── execute_command.py     # 命令行执行
-│   ├── python_sandbox.py      # Python 沙盒
-│   ├── web_search.py          # Web 搜索 (MCP)
-│   ├── web_reader.py          # Web Reader (MCP)
-│   ├── file_reader.py         # 文件读取
-│   ├── file_write.py          # 文件写入
-│   ├── database.py            # SQL 查询
-│   └── vector_search.py       # 向量检索
-├── skills/                    # Skills 目录
-│   ├── anomaly_detection/     # 异动检测
-│   ├── attribution/           # 归因分析
-│   ├── report_gen/            # 报告生成
-│   └── visualization/         # 数据可视化
-├── coco-frontend/             # Web 前端 (Vite + React)
-│   ├── index.html            # 单页应用入口
-│   └── src/                  # 页面与组件（含 Agent 对话）
-├── config/                    # 配置文件
-│   ├── config.py              # 配置管理核心
-│   ├── settings.yaml          # 主配置
-│   └── .env                   # 环境变量
-├── tests/                     # 测试套件
-│   └── monitoring/           # 监控系统测试 (v2.4.0 新增)
-├── memory/                    # 每日对话日志
-├── docs/                      # 文档
-│   └── monitoring.md         # 监控系统文档 (v2.4.0 新增)
-├── Dockerfile                 # 主服务镜像
-├── Dockerfile.sandbox         # Python 沙盒镜像
-└── docker-compose.yml         # 开发环境
-```
+### 自定义 Agent Loop
 
-## 🚀 快速开始
+仓库使用自定义 `StateGraph` 实现 `Analyze → Plan → Execute → Observe` 循环，同时兼容模型原生 `tool_calls` 与结构化 JSON 工具调用。
+
+代码：[`backend/agents/agent.py`](backend/agents/agent.py)
+
+### 渐进式 Skills
+
+Skill Loader 首先只读取 YAML Frontmatter；任务需要时才加载完整 `SKILL.md` 和相关资源，降低无关指令对上下文的占用。
+
+内置 Skills：
+
+- [`anomaly_detection`](skills/anomaly_detection/)：统计异常和历史对比；
+- [`attribution`](skills/attribution/)：贡献度、相关性与维度下钻；
+- [`visualization`](skills/visualization/)：图表推荐和 ECharts 配置；
+- [`report_gen`](skills/report_gen/)：周期性与自定义报告。
+
+代码：[`backend/skills/`](backend/skills/)
+
+### 上下文与记忆
+
+- LangGraph Checkpointer 保存对话状态；
+- ContextManager 负责文件清理、摘要和压缩；
+- ContextCoordinator 提供统一消息准备入口；
+- Memory 模块支持索引、检索与 Memory Flush。
+
+代码：[`backend/core/`](backend/core/)、[`backend/memory/`](backend/memory/)
+
+### 受控工具执行
+
+Python 工具使用危险模式检查、AST Import 白名单和 Docker 资源隔离；SQL 工具限制只读查询；FileStore 校验路径、扩展名和文件大小。
+
+代码：[`tools/python_sandbox.py`](tools/python_sandbox.py)、[`tools/database.py`](tools/database.py)、[`backend/filestore/security.py`](backend/filestore/security.py)
+
+### 可观测性
+
+ExecutionTracer 使用父子 Span 表达 Agent、LLM、工具、Skill 和上下文压缩链路；MetricsCollector 汇总 Token、耗时、成功率和估算成本。
+
+代码：[`backend/monitoring/`](backend/monitoring/)
+
+## 核心工具
+
+| 工具 | 作用 | 关键约束 |
+| --- | --- | --- |
+| `execute_command` | 执行受控命令 | 白名单与 Docker 隔离 |
+| `run_python` | 运行数据分析代码 | AST 校验、Import 白名单、超时 |
+| `web_search` / `web_reader` | 搜索与读取网页 | MCP 模式与输出封装 |
+| `file_reader` / `file_write` | 读取和生成分析文件 | 路径与类型校验 |
+| `query_database` | 查询业务数据库 | 参数化、只读限制、连接清理 |
+| `vector_search` | 检索指标和知识 | Vector + 本地回退 |
+| `memory_search_v2` | 检索长期记忆 | FTS5 + Vector 混合搜索 |
+| `activate_skill` | 激活专业 Skill | 权限与上下文修饰器 |
+
+## 快速开始
 
 ### 环境要求
 
-- Python 3.12+
-- Docker & Docker Compose
-- API Keys (至少一个):
-  - `ANTHROPIC_API_KEY` (Claude)
-  - 或 `GOOGLE_API_KEY` (Gemini)
-  - 或 `ZHIPUAI_API_KEY` (智谱 GLM)
+- Python 3.12；
+- Node.js 18+；
+- Docker Desktop（Python/命令沙盒需要）；
+- Anthropic、OpenAI、Google 或智谱中的至少一个模型 API Key。
 
-### 安装
+### 1. 安装后端
 
 ```bash
-# 克隆项目
-git clone <repository-url>
-cd ba-agent
+git clone https://github.com/lucky-Coconutye/Cocoye-BA-Agent.git
+cd Cocoye-BA-Agent
 
-# 创建虚拟环境
-python3.12 -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 
-# 安装依赖
-pip install -r requirements.txt
-
-# 配置环境变量
 cp .env.example .env
-# 编辑 .env 填入 API Keys
 ```
 
-### API 配置 (可选 - LingYi AI 代理)
+在 `.env` 中配置模型，例如：
 
-如需使用 LingYi AI 作为 Claude/Gemini API 代理：
-
-```bash
-# .env 配置
-ANTHROPIC_API_KEY=your_lingyi_api_key
-ANTHROPIC_BASE_URL=https://api.lingyaai.cn/v1/messages
-
-GOOGLE_API_KEY=your_lingyi_gemini_key
-GOOGLE_BASE_URL=https://api.lingyaai.cn/v1
+```dotenv
+BA_DEFAULT_MODEL=glm-4
+ZHIPUAI_API_KEY=your_key
 ```
 
-### MCP 集成配置 (Z.ai 智谱)
+### 2. 启动 API
 
 ```bash
-# .env 配置
-MCP_AVAILABLE=true
-ZAI_MCP_API_KEY=your_zhipuai_api_key
+python -m uvicorn backend.api.main:app \
+  --host 127.0.0.1 \
+  --port 8000 \
+  --reload
 ```
 
-### 运行测试
+```bash
+curl http://127.0.0.1:8000/api/v1/health
+```
+
+- OpenAPI：<http://127.0.0.1:8000/docs>
+- Health：<http://127.0.0.1:8000/api/v1/health>
+
+### 3. 启动前端
 
 ```bash
-# 运行所有测试
+cd coco-frontend
+npm ci
+npm run dev
+```
+
+访问 <http://127.0.0.1:8080>。Vite 会将 `/api` 代理到后端 `8000` 端口。
+
+### 4. 构建与测试
+
+```bash
+# 后端测试
+source .venv/bin/activate
 pytest
 
-# 运行特定测试
-pytest tests/test_docker/
-pytest tests/tools/
-
-# 运行 MCP 集成测试
-MCP_AVAILABLE=true pytest tests/tools/test_web_search_integration.py
-MCP_AVAILABLE=true pytest tests/tools/test_web_reader_integration.py
+# 前端生产构建
+cd coco-frontend
+npm run build
 ```
 
-### 启动开发环境
+当前仓库未包含 ESLint 配置文件，因此 `npm run lint` 尚不能作为有效校验命令。
+
+### Docker Compose
 
 ```bash
-# 启动 Docker 服务
-docker-compose up -d
-
-# 启动 Agent (Python)
-python -c "from backend.agents.agent import create_agent; agent = create_agent(); print(agent.invoke('你好'))"
-
-# 启动 API 服务
-uvicorn backend.api.main:app --reload --port 8000
-
-# 访问 API 文档
-open http://localhost:8000/docs
-
-# 访问 Web 前端测试控制台
-open http://localhost:8000
+docker compose up --build
 ```
 
-### Web 前端测试控制台
+Compose 文件包含 API、PostgreSQL 和 ClickHouse；实际使用 Python 沙盒时还需要可访问的 Docker daemon。
 
-BA-Agent 提供了完整的单页应用 (SPA) 前端测试控制台：
+## API 入口
 
-**功能**:
-- 🔐 JWT 登录/登出
-- 💬 Agent 对话界面
-- 📁 文件管理（拖拽上传/下载/删除）
-- 🎯 Skills 管理（列表/分类查看）
-
-**访问方式**:
-```bash
-# 启动 API 服务器
-uvicorn backend.api.main:app --reload --port 8000
-
-# 启动前端（在 coco-frontend 目录，端口 8080）
-cd coco-frontend && npm run dev
-# 浏览器打开 http://localhost:8080
-
-# 或由后端直接提供前端页面（需先 build coco-frontend 并配置静态目录）
-open http://localhost:8000
-
-# 默认登录账号
-用户名: admin
-密码: admin123
-```
-
-**前端技术栈** (coco-frontend):
-- Vite + React，/api 代理到后端 8000
-- JWT 令牌管理 (localStorage)
-- 响应式设计
-- 拖拽上传支持
-
-### 监控仪表板 (v2.4.0 新增)
-
-BA-Agent 提供了完整的监控仪表板用于追踪和分析 Agent 执行：
-
-**功能**:
-- 📊 执行流程可视化（Mermaid 流程图）
-- 📈 性能指标分析（Token 使用、耗时、成本）
-- 🔍 详细的 Span 追踪（LLM 调用、工具调用）
-- 💾 历史查询和导出（JSON/Mermaid 格式）
-- 🎯 实时状态监控
-
-**访问方式**:
-```bash
-# 启动 API 服务器
-uvicorn backend.api.main:app --reload --port 8000
-
-# 浏览器访问监控仪表板
-open http://localhost:8000/monitoring
-
-# 使用相同的登录账号
-用户名: admin
-密码: admin123
-```
-
-**监控特性**:
-- 自动追踪每次 Agent 执行
-- 记录完整的调用链路（agent_invoke → llm_call → tool_call）
-- 收聚性能指标和 Token 使用
-- 估算 API 成本（支持多模型定价）
-- SQLite 索引支持快速查询
-
-**监控 API 端点**:
-```bash
-# 获取对话列表
-GET /api/v1/monitoring/conversations
-
-# 获取指定对话的追踪
-GET /api/v1/monitoring/traces/{conversation_id}
-
-# 获取 Mermaid 可视化
-GET /api/v1/monitoring/traces/{conversation_id}/visualize
-
-# 获取性能摘要
-GET /api/v1/monitoring/performance/{conversation_id}
-
-# 获取指标数据
-GET /api/v1/monitoring/metrics
-```
-
-**前端技术栈**:
-- Mermaid.js - 流程图渲染
-- ECharts - 指标可视化
-- 纯 HTML/CSS/JavaScript（无框架依赖）
-
-### API 认证
-
-API 服务 v2.2.0 默认启用 JWT 认证：
+| Endpoint | 作用 | 鉴权 |
+| --- | --- | --- |
+| `GET /api/v1/health` | 健康检查 | 否 |
+| `POST /api/v1/auth/login` | 获取 JWT | 否 |
+| `POST /api/v1/chat` | 前端简易对话 | 否 |
+| `POST /api/v1/agent/query` | 完整 Agent 查询 | 当前路由未强制 JWT |
+| `/api/v1/files/*` | 文件上传、下载与删除 | 是 |
+| `/api/v1/skills/*` | Skill 查询与管理 | 是 |
+| `/api/v1/monitoring/*` | Trace 和 Metrics | 是 |
 
 ```bash
-# 登录获取令牌
-curl -X POST http://localhost:8000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}'
-
-# 使用令牌访问受保护的端点
-curl http://localhost:8000/api/v1/files \
-  -H "Authorization: Bearer <access_token>"
+curl -X POST http://127.0.0.1:8000/api/v1/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"分析最近 30 天 GMV 异动并给出可能原因"}'
 ```
 
-**默认用户**:
-- 管理员: `admin` / `admin123` (全部权限)
-- 普通用户: `user` / `user123` (读写权限)
+真实 Agent 响应需要有效模型凭证；健康检查、OpenAPI 和前端静态页面不需要。
 
-**环境变量**:
-```bash
-BA_JWT_SECRET_KEY=your-secret-key-change-in-production
-BA_JWT_EXPIRE_MINUTES=60
-BA_RATE_LIMIT_IP_PER_MINUTE=60
+## 项目结构
+
+```text
+.
+├── backend/
+│   ├── agents/            # LangGraph Agent
+│   ├── api/               # FastAPI、路由与认证
+│   ├── core/              # 上下文管理
+│   ├── filestore/         # 文件与 Artifact
+│   ├── memory/            # 记忆、索引与检索
+│   ├── monitoring/        # Trace 与 Metrics
+│   ├── pipeline/          # 工具输出、超时和缓存
+│   └── skills/            # Skill 加载与激活
+├── coco-frontend/         # React + Vite 前端
+├── skills/                # 业务 Skills
+├── tools/                 # Agent 工具
+├── tests/                 # 单元与集成测试
+├── docs/                  # 架构与开发文档
+├── config/                # 应用配置
+└── docker-compose.yml     # 本地服务编排
 ```
 
-## 📚 文档
+## 当前状态与边界
 
-### 核心文档
-- [产品 PRD](docs/README.md) - 产品需求文档
-- [项目架构](docs/architecture.md) - 架构设计（v2.2.0 更新 ContextCoordinator）
-- [上下文管理](docs/context-management.md) - 上下文管理详细文档（v1.5.0 更新）
-- [系统提示词](docs/prompts.md) - Agent 提示词定义和规范
-- [响应格式流转](docs/response-flow.md) - 大模型返回格式与前端渲染完整流程（v2.8.0 更新）
-- [API 文档](docs/api.md) - REST API 端点（v2.4.0 更新）
-- [Skills 指南](docs/skills.md) - Skills 开发指南
-- [监控系统](docs/monitoring.md) - 全流程监控与追踪系统（v2.4.0 新增）⭐
-- [开发指南](docs/development.md) - 开发环境与测试（v2.4.0 更新）
-- [开发进度](progress.md) - 详细开发日志
+仓库已经具备 Agent、Skills、上下文、工具、FileStore、监控 API 和产品前端等核心模块。当前仍需继续完善：
 
-### 文档目录
-- [docs/README.md](docs/README.md) - 文档导航和概述
+- 前端上传、知识库和 Skill 管理与后端 API 的完整联调；
+- 流式输出、任务取消和失败恢复；
+- 会话、Trace 与 Artifact 的生产级持久化；
+- Prompt/Skill 版本管理和 Golden Dataset 自动评测；
+- 多租户隔离、审计、密钥托管与细粒度权限；
+- 统一代码、OpenAPI 和文档中的版本来源。
 
-## 🔧 已完成的工具
+## 文档
 
-| 工具 | 说明 | 测试 |
-|------|------|------|
-| execute_command | Docker 隔离的命令行执行 | 16/16 ✅ |
-| run_python | Docker 隔离的 Python 代码执行 | 29/29 ✅ |
-| web_search | Web 搜索 (Z.ai MCP) | 22/22 ✅ |
-| web_reader | Web 读取 (Z.ai MCP) | 27/27 ✅ |
-| file_reader | 文件读取 (CSV/Excel/JSON/文本) | 61/61 ✅ |
-| query_database | SQL 查询 (参数化，多数据库) | 54/54 ✅ |
-| search_knowledge | 向量检索 (ChromaDB/内存回退) | 51/51 ✅ |
-| invoke_skill | Skill 调用 (桥接 Skills) | 43/43 ✅ |
-| skill_package | Skill 包管理 (GitHub/ZIP) | 43/43 ✅ |
+- [产品与文档导航](docs/README.md)
+- [技术架构](docs/architecture.md)
+- [API 设计](docs/api.md)
+- [上下文管理](docs/context-management.md)
+- [响应流转](docs/response-flow.md)
+- [Skills 开发](docs/skills.md)
+- [监控设计](docs/monitoring.md)
+- [开发指南](docs/development.md)
 
-**Phase 2 完成**: 9/9 核心工具全部实现 ✅
-
-## 🧩 Phase 3: Skills 系统
-
-**已完成**:
-- [x] Skills 配置系统 (config/skills.yaml)
-- [x] Skill 注册表 (config/skills_registry.json)
-- [x] Skill 包管理工具 (tools/skill_manager.py)
-- [x] 统一 SKILL.md 格式 (YAML frontmatter)
-- [x] 4 个内置 Skill 结构
-- [x] MCP 集成测试 (Web 搜索 + Web 读取)
-
-**待实现**:
-- [ ] 异动检测 Skill 完整实现
-- [ ] 归因分析 Skill 完整实现
-- [ ] 报告生成 Skill 完整实现
-- [ ] 数据可视化 Skill 完整实现
-
-## 📊 测试覆盖
-
-```
-总计: 1065 个测试
-✅ 通过: 1065 (100%)
-⏭️  跳过: 1 (MCP 相关)
-❌ 失败: 0
-```
-
-### 测试分类
-
-| 类别 | 测试数 | 状态 |
-|------|--------|------|
-| 基础设施 | 135 | ✅ |
-| 核心工具 | 303 | ✅ |
-| Skills 系统 | 200+ | ✅ |
-| Context Coordinator | 24 | ✅ (v2.3.0 新增) |
-| Context Manager | 41 | ✅ (增强测试) |
-| Pipeline v2.1 | 100+ | ✅ |
-| Memory 系统 | 120 | ✅ |
-| Agent 集成 | 25 | ✅ |
-| API 服务 | 36 | ✅ |
-| MCP 集成 | 9 | ✅ |
-| FileStore 系统 | 100+ | ✅ |
-| 监控系统 | 35 | ✅ (v2.4.0 新增) ⭐ |
-
-## 🔜 待实现的功能
-
-- [ ] IM Bot 集成 (钉钉/企业微信)
-- [ ] Excel 插件 (Office.js)
-
-## 🏗️ 最新架构更新 (v2.4.0)
-
-### Agent 全流程监控和追踪系统
-
-新增完整的 Agent 执行监控和追踪能力，解决执行流程不可见的问题：
-
-**架构改进**:
-```
-Agent Execution → ExecutionTracer → TraceStore (FileStore)
-                      ↓                 ↓
-                 MetricsCollector → MetricsStore
-                      ↓
-                 Monitoring API → Dashboard
-```
-
-**核心功能**:
-- 执行流程追踪（OpenTelemetry 兼容的 Span 结构）
-- 性能指标收集（Token 使用、耗时、成本估算）
-- 可视化仪表板（Mermaid 流程图 + ECharts 图表）
-- 历史查询和导出
-
-**新增组件**:
-- `backend/monitoring/execution_tracer.py` - 执行追踪器
-- `backend/monitoring/metrics_collector.py` - 指标收集器
-- `backend/monitoring/trace_store.py` - 追踪存储（基于 FileStore）
-- `backend/api/routes/monitoring/` - 监控 API 路由
-- `coco-frontend/` - Web 前端（对话、首页）；监控仪表板可由后端 `/monitoring` 提供静态页（若存在）
-- 35 个新测试通过
-
-**监控仪表板访问**: `http://localhost:8000/monitoring`
-
-## 🏗️ 上一版架构更新 (v2.3.0)
-
-### ContextCoordinator 协调层
-
-新增统一的上下文协调机制，解决文件清理逻辑分散的问题：
-
-**架构改进**:
-```
-API Layer → Coordination Layer → (LangGraph | ContextManager | Memory Flush)
-```
-
-**核心功能**:
-- 统一的文件清理入口（所有清理通过 ContextCoordinator）
-- 新/旧对话使用相同的处理流程
-- 明确的职责划分（LangGraph 管理历史，ContextManager 管理清理）
-
-**新增组件**:
-- `backend/core/context_coordinator.py` - 上下文协调器
-- `backend/core/context_manager.py` - 增强 LangChain 消息清理
-- 24 个新测试通过
-
-## 📝 许可证
+## License
 
 MIT License
-
----
-
-**最后更新**: 2026-02-08 (v2.4.0 - 监控系统)
